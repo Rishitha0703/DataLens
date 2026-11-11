@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analysis of sample.csv</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1c2530;
+    --muted: #5d6b7a;
+    --line: #dde2e8;
+    --accent: #0f766e;
+    --warm: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 24px 72px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; margin: 48px 0 4px; }
+  h3 { font-size: 15px; margin: 0 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 24px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .tile b { display: block; font-size: 24px; font-weight: 650; }
+  .tile span { color: var(--muted); font-size: 13px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .note { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 14px; }
+  .chip { background: #eef1f4; border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  .empty { color: var(--muted); font-style: italic; }
+  .ai p { margin: 0 0 10px; max-width: 75ch; }
+  .ai .pending { color: var(--muted); }
+  ul.log { margin: 6px 0 0; padding-left: 18px; }
+  ul.log li { margin: 2px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+  <div class="tiles" id="tiles"></div>
+
+  <h2>Data quality</h2>
+  <p class="sub">Missing values, duplicates and what the cleaning step changed.</p>
+  <div class="grid">
+    <div class="card"><h3>Missing values before cleaning</h3><div class="note">Share of rows empty, per column</div><div id="missing-chart"></div></div>
+    <div class="card"><h3>Cleaning log</h3><div id="cleaning-log"></div></div>
+  </div>
+
+  <h2>Column types</h2>
+  <div class="card" id="types"></div>
+
+  <h2>Numerical summary</h2>
+  <p class="sub">Mean, median, mode and standard deviation for each numerical column.</p>
+  <div class="card scroll" id="stats-table"></div>
+
+  <h2>Distributions</h2>
+  <p class="sub">Frequency histogram with a box plot underneath (whiskers follow the 1.5 × IQR rule).</p>
+  <div class="grid" id="distributions"></div>
+
+  <h2>Correlation</h2>
+  <p class="sub">Pearson correlation between numerical columns.</p>
+  <div class="grid">
+    <div class="card"><div id="corr-heatmap"></div></div>
+    <div class="card scroll"><h3>Strongest pairs</h3><div id="corr-pairs"></div></div>
+  </div>
+
+  <h2>Categorical frequencies</h2>
+  <p class="sub">Most common values in each categorical column.</p>
+  <div class="grid" id="categoricals"></div>
+
+  <h2>AI insights</h2>
+  <div class="card ai" id="insights"></div>
+</main>
+
+<script type="application/json" id="data">{"overview": {"rows": 300, "columns": 6, "numerical_columns": 3, "categorical_columns": 2, "datetime_columns": 1, "memory_kb": 41.0, "original_rows": 312, "original_columns": 7}, "column_types": {"numerical": ["Age", "Income", "Spend"], "categorical": ["Customer ID", "Region"], "datetime": ["Signup"]}, "data_quality": {"missing_before_cleaning": [{"column": "Notes", "missing": 312, "missing_pct": 100.0}, {"column": "Income", "missing": 20, "missing_pct": 6.41}, {"column": "Region", "missing": 10, "missing_pct": 3.21}, {"column": "Age", "missing": 2, "missing_pct": 0.64}, {"column": "Customer ID", "missing": 0, "missing_pct": 0.0}, {"column": "Spend", "missing": 0, "missing_pct": 0.0}, {"column": "Signup", "missing": 0, "missing_pct": 0.0}], "missing_after_cleaning": [{"column": "Customer ID", "missing": 0, "missing_pct": 0.0}, {"column": "Age", "missing": 0, "missing_pct": 0.0}, {"column": "Income", "missing": 0, "missing_pct": 0.0}, {"column": "Spend", "missing": 0, "missing_pct": 0.0}, {"column": "Region", "missing": 0, "missing_pct": 0.0}, {"column": "Signup", "missing": 0, "missing_pct": 0.0}], "duplicates_found": 12, "duplicates_removed": 12, "dropped_columns": ["Notes"], "imputed": [{"column": "Age", "strategy": "median", "value": 44.0, "count": 1}, {"column": "Income", "strategy": "median", "value": 53667.0, "count": 20}, {"column": "Region", "strategy": "mode", "value": "East", "count": 10}], "converted_types": {"Age": "numeric", "Signup": "datetime"}, "renamed_columns": {" Customer ID ": "Customer ID"}}, "numeric_stats": {"Age": {"count": 300, "mean": 44.27333333333333, "median": 44.0, "mode": [57.0], "std": 14.805493270816621, "variance": 219.20263099219622, "min": 18.0, "q1": 32.0, "q3": 58.0, "max": 69.0, "skew": -0.056038874902791844, "kurtosis": -1.2296179304394839, "outlier_count": 0, "whisker_low": 18.0, "whisker_high": 69.0, "histogram": {"counts": [28, 27, 31, 27, 32, 31, 22, 35, 34, 33], "edges": [18.0, 23.1, 28.2, 33.3, 38.4, 43.5, 48.599999999999994, 53.699999999999996, 58.8, 63.9, 69.0]}}, "Income": {"count": 300, "mean": 53809.753333333334, "median": 53667.0, "mode": [53667.0], "std": 13385.774488413854, "variance": 179178958.65467116, "min": 14331.0, "q1": 44955.75, "q3": 62587.0, "max": 101501.0, "skew": 0.19310826132626327, "kurtosis": 0.5197409956121333, "outlier_count": 4, "whisker_low": 20787.0, "whisker_high": 86857.0, "histogram": {"counts": [2, 2, 4, 13, 25, 31, 38, 60, 38, 30, 30, 11, 7, 6, 1, 0, 2], "edges": [14331.0, 19458.64705882353, 24586.29411764706, 29713.941176470587, 34841.58823529412, 39969.23529411765, 45096.882352941175, 50224.529411764706, 55352.17647058824, 60479.82352941177, 65607.4705882353, 70735.11764705883, 75862.76470588235, 80990.41176470589, 86118.05882352941, 91245.70588235295, 96373.35294117648, 101501.0]}}, "Spend": {"count": 300, "mean": 2669.7937, "median": 2717.44, "mode": [], "std": 869.5424914198223, "variance": 756104.1443845918, "min": 173.84, "q1": 2140.1150000000002, "q3": 3199.98, "max": 5341.03, "skew": -0.12439502288150342, "kurtosis": 0.20359442874020406, "outlier_count": 6, "whisker_low": 595.23, "whisker_high": 4564.75, "histogram": {"counts": [3, 3, 7, 12, 14, 22, 34, 40, 44, 49, 26, 21, 10, 10, 2, 2, 1], "edges": [173.84, 477.79235294117643, 781.744705882353, 1085.6970588235292, 1389.6494117647057, 1693.6017647058823, 1997.5541176470585, 2301.5064705882355, 2605.458823529412, 2909.411176470588, 3213.363529411765, 3517.315882352941, 3821.2682352941174, 4125.220588235294, 4429.172941176471, 4733.125294117647, 5037.0776470588235, 5341.03]}}}, "categorical_stats": {"Customer ID": {"count": 300, "unique": 300, "mode": ["C0000", "C0001", "C0002"], "top_frequency": [{"value": "C0000", "count": 1, "pct": 0.33}, {"value": "C0001", "count": 1, "pct": 0.33}, {"value": "C0002", "count": 1, "pct": 0.33}, {"value": "C0003", "count": 1, "pct": 0.33}, {"value": "C0004", "count": 1, "pct": 0.33}, {"value": "C0005", "count": 1, "pct": 0.33}, {"value": "C0006", "count": 1, "pct": 0.33}, {"value": "C0007", "count": 1, "pct": 0.33}, {"value": "C0008", "count": 1, "pct": 0.33}, {"value": "C0009", "count": 1, "pct": 0.33}], "other_count": 290, "likely_identifier": true}, "Region": {"count": 300, "unique": 4, "mode": ["East"], "top_frequency": [{"value": "East", "count": 88, "pct": 29.33}, {"value": "South", "count": 75, "pct": 25.0}, {"value": "West", "count": 71, "pct": 23.67}, {"value": "North", "count": 66, "pct": 22.0}], "other_count": 0, "likely_identifier": false}}, "datetime_stats": {"Signup": {"count": 300, "min": "2023-01-01T00:00:00", "max": "2023-12-10T00:00:00", "span_days": 343}}, "correlation": {"columns": ["Age", "Income", "Spend"], "matrix": [[1.0, 0.07955741737611821, 0.10065267293910819], [0.07955741737611821, 1.0, 0.7495061160004771], [0.10065267293910819, 0.7495061160004771, 1.0]], "top_pairs": [{"a": "Income", "b": "Spend", "r": 0.7495061160004771, "strength": "strong", "direction": "positive"}, {"a": "Age", "b": "Spend", "r": 0.10065267293910819, "strength": "weak", "direction": "positive"}, {"a": "Age", "b": "Income", "r": 0.07955741737611821, "strength": "weak", "direction": "positive"}]}, "title": "Analysis of sample.csv", "insights": null}</script>
+<script>
+const D = JSON.parse(document.getElementById("data").textContent);
+const INK = "#1c2530", MUTED = "#5d6b7a", ACCENT = "#0f766e", WARM = "#b45309", GRID = "#e6e9ee";
+const CFG = { responsive: true, displaylogo: false, displayModeBar: false };
+const BASE = {
+  font: { family: "system-ui, -apple-system, 'Segoe UI', sans-serif", size: 12, color: INK },
+  paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+  margin: { l: 50, r: 16, t: 10, b: 40 },
+};
+
+// ---------- helpers ----------
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function fmt(v, digits = 2) {
+  if (v === null || v === undefined) return "–";
+  if (typeof v !== "number") return String(v);
+  if (Number.isInteger(v)) return v.toLocaleString();
+  return v.toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+function cardWith(title, note) {
+  const c = el("div", "card");
+  c.appendChild(el("h3", null, title));
+  if (note) c.appendChild(el("div", "note", note));
+  const plot = el("div");
+  c.appendChild(plot);
+  return { card: c, plot };
+}
+function plot(node, data, layout) { Plotly.newPlot(node, data, { ...BASE, ...layout }, CFG); }
+function emptyMsg(node, text) { node.appendChild(el("div", "empty", text)); }
+
+// ---------- header + tiles ----------
+const o = D.overview, q = D.data_quality;
+document.getElementById("title").textContent = D.title;
+document.getElementById("subtitle").textContent =
+  `${fmt(o.rows)} rows × ${o.columns} columns after cleaning (started with ${fmt(o.original_rows)} × ${o.original_columns}).`;
+
+const missingTotal = q.missing_before_cleaning.reduce((a, r) => a + r.missing, 0);
+[
+  ["Rows", fmt(o.rows)], ["Columns", o.columns],
+  ["Numerical", o.numerical_columns], ["Categorical", o.categorical_columns],
+  ["Missing cells found", fmt(missingTotal)], ["Duplicates removed", fmt(q.duplicates_removed)],
+].forEach(([label, value]) => {
+  const t = el("div", "tile");
+  t.appendChild(el("b", null, String(value)));
+  t.appendChild(el("span", null, label));
+  document.getElementById("tiles").appendChild(t);
+});
+
+// ---------- missing values ----------
+(function () {
+  const rows = q.missing_before_cleaning.filter(r => r.missing > 0).sort((a, b) => a.missing_pct - b.missing_pct);
+  const host = document.getElementById("missing-chart");
+  if (!rows.length) return emptyMsg(host, "No missing values were found.");
+  plot(host, [{
+    type: "bar", orientation: "h",
+    x: rows.map(r => r.missing_pct), y: rows.map(r => r.column),
+    customdata: rows.map(r => r.missing),
+    hovertemplate: "%{y}<br>%{x:.1f}% (%{customdata} rows)<extra></extra>",
+    marker: { color: WARM },
+  }], {
+    height: Math.max(180, rows.length * 30 + 60),
+    margin: { l: 120, r: 16, t: 4, b: 40 },
+    xaxis: { title: "% missing", gridcolor: GRID, range: [0, 100] },
+  });
+})();
+
+// ---------- cleaning log ----------
+(function () {
+  const host = document.getElementById("cleaning-log");
+  const items = [];
+  items.push(`Duplicate rows found: ${fmt(q.duplicates_found)}, removed: ${fmt(q.duplicates_removed)}`);
+  Object.entries(q.converted_types).forEach(([c, t]) => items.push(`Converted "${c}" to ${t}`));
+  q.imputed.forEach(i => items.push(`Filled ${fmt(i.count)} missing in "${i.column}" with ${i.strategy} (${fmt(i.value)})`));
+  if (q.dropped_columns.length) items.push(`Dropped mostly-empty columns: ${q.dropped_columns.join(", ")}`);
+  Object.entries(q.renamed_columns).forEach(([a, b]) => items.push(`Renamed "${a}" to "${b}"`));
+  const ul = el("ul", "log");
+  items.forEach(t => ul.appendChild(el("li", null, t)));
+  host.appendChild(ul);
+})();
+
+// ---------- column types ----------
+(function () {
+  const host = document.getElementById("types");
+  [["Numerical", D.column_types.numerical], ["Categorical", D.column_types.categorical], ["Datetime", D.column_types.datetime]]
+    .forEach(([label, cols]) => {
+      host.appendChild(el("h3", null, `${label} (${cols.length})`));
+      const chips = el("div", "chips");
+      if (!cols.length) chips.appendChild(el("span", "empty", "none"));
+      cols.forEach(c => chips.appendChild(el("span", "chip", c)));
+      host.appendChild(chips);
+    });
+})();
+
+// ---------- numerical summary table ----------
+(function () {
+  const host = document.getElementById("stats-table");
+  const names = Object.keys(D.numeric_stats);
+  if (!names.length) return emptyMsg(host, "No numerical columns.");
+  const heads = ["Column", "Count", "Mean", "Median", "Mode", "Std dev", "Min", "Max", "Skew", "Outliers"];
+  const table = el("table");
+  const tr = el("tr");
+  heads.forEach(h => tr.appendChild(el("th", null, h)));
+  const thead = el("thead"); thead.appendChild(tr); table.appendChild(thead);
+  const tbody = el("tbody");
+  names.forEach(n => {
+    const s = D.numeric_stats[n];
+    const row = el("tr");
+    [n, fmt(s.count), fmt(s.mean), fmt(s.median), s.mode.length ? s.mode.map(m => fmt(m)).join(", ") : "–",
+     fmt(s.std), fmt(s.min), fmt(s.max), fmt(s.skew), fmt(s.outlier_count)]
+      .forEach(v => row.appendChild(el("td", null, v)));
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  host.appendChild(table);
+})();
+
+// ---------- distributions ----------
+(function () {
+  const host = document.getElementById("distributions");
+  const names = Object.keys(D.numeric_stats);
+  if (!names.length) return emptyMsg(host, "No numerical columns.");
+  names.forEach(n => {
+    const s = D.numeric_stats[n], h = s.histogram;
+    const { card, plot: histNode } = cardWith(n, `mean ${fmt(s.mean)} · median ${fmt(s.median)} · std ${fmt(s.std)}`);
+    const boxNode = el("div");
+    card.appendChild(boxNode);
+    host.appendChild(card);
+
+    const centers = h.counts.map((_, i) => (h.edges[i] + h.edges[i + 1]) / 2);
+    const widths = h.counts.map((_, i) => h.edges[i + 1] - h.edges[i]);
+    plot(histNode, [{
+      type: "bar", x: centers, y: h.counts, width: widths,
+      customdata: h.counts.map((_, i) => [h.edges[i], h.edges[i + 1]]),
+      hovertemplate: "%{customdata[0]:.4g} to %{customdata[1]:.4g}<br>%{y} rows<extra></extra>",
+      marker: { color: ACCENT, line: { color: "#fff", width: 1 } },
+    }], {
+      height: 220, bargap: 0,
+      xaxis: { gridcolor: GRID }, yaxis: { title: "rows", gridcolor: GRID },
+    });
+    plot(boxNode, [{
+      type: "box", orientation: "h", y: [""],
+      q1: [s.q1], median: [s.median], q3: [s.q3],
+      lowerfence: [s.whisker_low], upperfence: [s.whisker_high],
+      mean: [s.mean], sd: [s.std === null ? 0 : s.std],
+      boxmean: "sd", marker: { color: WARM }, line: { color: WARM },
+      fillcolor: "rgba(180,83,9,0.12)", hoverinfo: "x",
+    }], {
+      height: 100, margin: { l: 10, r: 16, t: 4, b: 28 },
+      xaxis: { gridcolor: GRID, zeroline: false }, yaxis: { showticklabels: false },
+      showlegend: false,
+    });
+    if (s.outlier_count) card.appendChild(el("div", "note", `${fmt(s.outlier_count)} value(s) fall outside the whiskers.`));
+  });
+})();
+
+// ---------- correlation ----------
+(function () {
+  const c = D.correlation;
+  const heat = document.getElementById("corr-heatmap");
+  const pairs = document.getElementById("corr-pairs");
+  if (c.columns.length < 2) {
+    emptyMsg(heat, "Needs at least two numerical columns with variation.");
+    emptyMsg(pairs, "–");
+    return;
+  }
+  plot(heat, [{
+    type: "heatmap", z: c.matrix, x: c.columns, y: c.columns,
+    zmin: -1, zmax: 1, zmid: 0,
+    colorscale: [[0, WARM], [0.5, "#f6f7f9"], [1, ACCENT]],
+    texttemplate: "%{z:.2f}", hovertemplate: "%{y} × %{x}<br>r = %{z:.3f}<extra></extra>",
+    colorbar: { thickness: 12 },
+  }], {
+    height: Math.max(320, c.columns.length * 48 + 100),
+    margin: { l: 110, r: 10, t: 10, b: 100 },
+    yaxis: { autorange: "reversed" }, xaxis: { tickangle: -35 },
+  });
+
+  const table = el("table");
+  const tr = el("tr");
+  ["Pair", "r", "Relationship"].forEach(h => tr.appendChild(el("th", null, h)));
+  const thead = el("thead"); thead.appendChild(tr); table.appendChild(thead);
+  const tbody = el("tbody");
+  c.top_pairs.forEach(p => {
+    const row = el("tr");
+    row.appendChild(el("td", null, `${p.a} × ${p.b}`));
+    row.appendChild(el("td", null, p.r.toFixed(3)));
+    row.appendChild(el("td", null, `${p.strength} ${p.direction}`));
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  pairs.appendChild(table);
+})();
+
+// ---------- categorical frequencies ----------
+(function () {
+  const host = document.getElementById("categoricals");
+  const names = Object.keys(D.categorical_stats);
+  if (!names.length) return emptyMsg(host, "No categorical columns.");
+  names.forEach(n => {
+    const s = D.categorical_stats[n];
+    const note = s.likely_identifier
+      ? `${fmt(s.unique)} unique values, looks like an identifier, so no chart`
+      : `${fmt(s.unique)} unique · most common: ${s.mode.join(", ")}`;
+    const { card, plot: node } = cardWith(n, note);
+    host.appendChild(card);
+    if (s.likely_identifier) return;
+
+    const rows = s.top_frequency.slice().reverse();
+    const labels = rows.map(r => r.value.length > 24 ? r.value.slice(0, 23) + "…" : r.value);
+    plot(node, [{
+      type: "bar", orientation: "h", x: rows.map(r => r.count), y: labels,
+      customdata: rows.map(r => [r.value, r.pct]),
+      hovertemplate: "%{customdata[0]}<br>%{x} rows (%{customdata[1]}%)<extra></extra>",
+      marker: { color: ACCENT },
+    }], {
+      height: Math.max(160, rows.length * 28 + 60),
+      margin: { l: 130, r: 16, t: 4, b: 36 },
+      xaxis: { title: "rows", gridcolor: GRID },
+    });
+    if (s.other_count) card.appendChild(el("div", "note", `${fmt(s.other_count)} more rows are spread across less common values.`));
+  });
+})();
+
+// ---------- AI insights ----------
+(function () {
+  const host = document.getElementById("insights");
+  if (!D.insights) {
+    host.appendChild(el("p", "pending", "AI insights are not connected yet. Once ai_insights.py is wired to a model, its summary will appear here."));
+    return;
+  }
+  // Format markdown in AI insights
+  let formatted = D.insights
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/^### (.*$)/gim, "<h4>$1</h4>")
+    .replace(/^## (.*$)/gim, "<h3>$1</h3>")
+    .replace(/^# (.*$)/gim, "<h2>$1</h2>")
+    .replace(/^\> (.*$)/gim, "<blockquote>$1</blockquote>")
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/^\s*[-*]\s+(.*$)/gim, "<li>$1</li>")
+    .replace(/(<li>[\s\S]*?<\/li>)+/g, "<ul>$&</ul>");
+
+  const pars = formatted.split(/\n{2,}/).map(p => {
+    p = p.trim();
+    if (!p) return "";
+    if (p.startsWith("<h") || p.startsWith("<ul") || p.startsWith("<block")) return p;
+    return `<p>${p.replace(/\n/g, "<br>")}</p>`;
+  }).join("");
+  host.innerHTML = pars;
+})();
+</script>
+</body>
+</html>
