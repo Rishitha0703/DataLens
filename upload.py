@@ -32,6 +32,10 @@ from ai_insights import generate_insights, is_gemini_configured
 from analytics import analyze
 from preprocessing import clean_dataset, load_dataset
 from validators import (
+    ALLOWED_EXTENSIONS,
+    MAX_FILE_BYTES,
+    MAX_FILE_KB,
+    MAX_FILE_MB,
     OPENXML_EXTENSIONS,
     ValidationError,
     safe_filename,
@@ -191,6 +195,15 @@ async def inspect_workbook_sheets(file: UploadFile = File(...)) -> dict[str, Any
         finally:
             file.file.close()
 
+    if tmp_path.stat().st_size > MAX_FILE_BYTES:
+        size = tmp_path.stat().st_size
+        return {
+            "is_excel": True,
+            "sheets": [],
+            "error": f"The file is {size / 1024:.2f} KB. The maximum allowed limit is {MAX_FILE_KB} KB ({MAX_FILE_BYTES:,} bytes).",
+            "default": None,
+        }
+
     try:
         excel = pd.ExcelFile(tmp_path)
         sheet_names = excel.sheet_names
@@ -220,60 +233,57 @@ def get_sample_analysis(sample_type: str = "health", enable_ai: bool = True) -> 
     """
     Return a pre-computed or generated sample dataset analysis
     for quick demonstration and testing of the dashboard.
-    Supports 'health' (Excel with 'Form responses 1') and 'ecommerce' (CSV).
+    Datasets are strictly sized under the MAX_FILE_KB (3 KB) limit.
     """
     import numpy as np
     import pandas as pd
 
     if sample_type == "health":
-        sample_file = BASE_DIR / "sample_health_campaign.xlsx"
-        if not sample_file.exists():
+        sample_file = BASE_DIR / "sample_health_campaign.csv"
+        # Regenerate if file doesn't exist or exceeds the 3 KB limit
+        if not sample_file.exists() or sample_file.stat().st_size > MAX_FILE_BYTES:
             np.random.seed(101)
-            n = 280
-            ages = np.random.randint(21, 78, size=n)
-            systolic = np.round(110 + (ages - 20) * 0.45 + np.random.normal(0, 12, size=n), 1)
-            cholesterol = np.round(175 + (ages - 20) * 0.65 + np.random.normal(0, 22, size=n), 1)
-            bmi = np.round(np.random.normal(26.4, 4.2, size=n), 1)
+            n = 32
+            ages = np.random.randint(22, 75, size=n)
+            systolic = np.round(112 + (ages - 20) * 0.45 + np.random.normal(0, 8, size=n), 1)
+            cholesterol = np.round(175 + (ages - 20) * 0.65 + np.random.normal(0, 15, size=n), 1)
+            bmi = np.round(np.random.normal(25.8, 3.8, size=n), 1)
 
             risk_cats = []
             for s, c, b in zip(systolic, cholesterol, bmi):
                 if s > 140 or c > 235 or b > 31:
-                    risk_cats.append("High Risk")
+                    risk_cats.append("High")
                 elif s > 125 or c > 205 or b > 27:
-                    risk_cats.append("Moderate Risk")
+                    risk_cats.append("Moderate")
                 else:
-                    risk_cats.append("Low Risk")
+                    risk_cats.append("Low")
 
             responses = np.random.choice(
-                ["Attended Workshop", "Received Consultation", "Completed Digital Survey", "Declined Follow-up"],
+                ["Workshop", "Consultation", "Survey", "Declined"],
                 size=n,
-                p=[0.38, 0.28, 0.24, 0.10],
+                p=[0.40, 0.30, 0.20, 0.10],
             )
             dates = pd.date_range("2024-03-01", periods=n, freq="D").strftime("%Y-%m-%d")
 
             df = pd.DataFrame({
-                "Participant ID": [f"MED-{i+1001}" for i in range(n)],
+                "Participant ID": [f"M{i+101}" for i in range(n)],
                 "Age": ages,
                 "Systolic BP": systolic,
-                "Cholesterol (mg/dL)": cholesterol,
+                "Cholesterol": cholesterol,
                 "BMI": bmi,
                 "Risk Category": risk_cats,
-                "Campaign Outcome": responses,
+                "Outcome": responses,
                 "Screening Date": dates,
-                "Notes": [None] * n,
             })
-            # Realistic data quality features
-            df.loc[12:19, "Cholesterol (mg/dL)"] = np.nan
-            df.loc[30:35, "BMI"] = np.nan
-            df = pd.concat([df, df.iloc[:8]], ignore_index=True)
-
-            with pd.ExcelWriter(sample_file, engine="openpyxl") as writer:
-                df.to_excel(writer, sheet_name="Form responses 1", index=False)
+            df.loc[5:7, "Cholesterol"] = np.nan
+            df.loc[12:13, "BMI"] = np.nan
+            df = pd.concat([df, df.iloc[:2]], ignore_index=True)
+            df.to_csv(sample_file, index=False)
 
         return process_dataset(
             file_path=sample_file,
-            original_filename="Health Awareness Campaign (Responses).xlsx",
-            sheet_name="Form responses 1",
+            original_filename="sample_health_campaign.csv",
+            sheet_name=0,
             drop_duplicates=True,
             impute=True,
             enable_ai=enable_ai,
@@ -281,27 +291,26 @@ def get_sample_analysis(sample_type: str = "health", enable_ai: bool = True) -> 
 
     # Default ecommerce CSV
     sample_file = BASE_DIR / "sample.csv"
-    if not sample_file.exists():
+    if not sample_file.exists() or sample_file.stat().st_size > MAX_FILE_BYTES:
         np.random.seed(42)
-        n = 300
-        ages = np.random.randint(18, 70, size=n)
-        incomes = np.round(np.random.normal(52000, 14000, size=n) + (ages - 18) * 120, 2)
-        spends = np.round(incomes * 0.05 + np.random.normal(200, 80, size=n), 2)
-        regions = np.random.choice(["North", "South", "East", "West"], size=n, p=[0.25, 0.25, 0.3, 0.2])
+        n = 32
+        ages = np.random.randint(18, 68, size=n)
+        incomes = np.round(np.random.normal(52000, 12000, size=n) + (ages - 18) * 120, 1)
+        spends = np.round(incomes * 0.05 + np.random.normal(150, 40, size=n), 1)
+        regions = np.random.choice(["North", "South", "East", "West"], size=n)
         dates = pd.date_range("2024-01-01", periods=n, freq="D").strftime("%Y-%m-%d")
 
         df = pd.DataFrame({
-            "Customer ID": [f"C{i:04d}" for i in range(n)],
+            "Customer ID": [f"C{i:03d}" for i in range(n)],
             "Age": ages,
             "Income": incomes,
             "Spend": spends,
             "Region": regions,
             "Signup": dates,
-            "Notes": [None] * n,
         })
-        df.loc[5:15, "Income"] = np.nan
-        df.loc[20:25, "Region"] = np.nan
-        df = pd.concat([df, df.iloc[:10]], ignore_index=True)
+        df.loc[4:6, "Income"] = np.nan
+        df.loc[10:11, "Region"] = np.nan
+        df = pd.concat([df, df.iloc[:2]], ignore_index=True)
         df.to_csv(sample_file, index=False)
 
     return process_dataset(

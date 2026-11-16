@@ -24,7 +24,12 @@ from fastapi.staticfiles import StaticFiles
 
 from ai_insights import is_gemini_configured
 from upload import router as upload_router
-from validators import ALLOWED_EXTENSIONS, MAX_FILE_MB
+from validators import (
+    ALLOWED_EXTENSIONS,
+    MAX_FILE_BYTES,
+    MAX_FILE_KB,
+    MAX_FILE_MB,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -62,7 +67,10 @@ def get_config() -> dict[str, object]:
     return {
         "gemini_configured": is_gemini_configured(),
         "allowed_extensions": sorted(ALLOWED_EXTENSIONS),
+        "max_file_kb": MAX_FILE_KB,
         "max_file_mb": MAX_FILE_MB,
+        "max_file_bytes": MAX_FILE_BYTES,
+        "max_file_display": f"{MAX_FILE_KB} KB",
         "default_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
     }
 
@@ -82,7 +90,8 @@ def serve_index() -> HTMLResponse:
     rendered = (
         template.replace("__BADGE_COLOR__", badge_color)
         .replace("__BADGE_TEXT__", badge_text)
-        .replace("__MAX_FILE_MB__", str(MAX_FILE_MB))
+        .replace("__MAX_FILE_LIMIT__", f"{MAX_FILE_KB} KB")
+        .replace("__MAX_FILE_MB__", f"{MAX_FILE_KB} KB")
     )
     return HTMLResponse(content=rendered)
 

@@ -28,7 +28,9 @@ ALLOWED_EXTENSIONS = {".csv", ".tsv", ".txt", ".xlsx", ".xlsm", ".xls"}
 TEXT_EXTENSIONS = {".csv", ".tsv", ".txt"}
 OPENXML_EXTENSIONS = {".xlsx", ".xlsm"}
 
-MAX_FILE_MB = 25
+MAX_FILE_KB = 3
+MAX_FILE_BYTES = MAX_FILE_KB * 1024   # 3,072 bytes
+MAX_FILE_MB = MAX_FILE_KB / 1024      # for backward compatibility
 MAX_UNZIPPED_MB = 300          # guards against zip bombs disguised as .xlsx
 MAX_ROWS = 500_000
 MAX_COLUMNS = 200
@@ -238,9 +240,10 @@ def _check_sheet(path: Path, sheet_name: str | int, res: ValidationResult) -> No
 def validate_upload(
     path: str | Path,
     sheet_name: str | int = 0,
-    max_file_mb: float = MAX_FILE_MB,
+    max_file_kb: float = MAX_FILE_KB,
+    max_file_mb: float | None = None,
 ) -> ValidationResult:
-    """Check that `path` is a safe, readable CSV/TSV/Excel file."""
+    """Check that `path` is a safe, readable CSV/TSV/Excel file under the allowed size limit."""
     res = ValidationResult()
     path = Path(path)
 
@@ -262,8 +265,18 @@ def validate_upload(
     if size == 0:
         res.errors.append("The file is empty.")
         return res
-    if size > max_file_mb * 1024 * 1024:
-        res.errors.append(f"The file is {size / 1024 / 1024:.1f} MB. The limit is {max_file_mb:g} MB.")
+
+    if max_file_mb is not None:
+        limit_bytes = int(max_file_mb * 1024 * 1024)
+        limit_desc = f"{max_file_mb:g} MB"
+    else:
+        limit_bytes = int(max_file_kb * 1024)
+        limit_desc = f"{max_file_kb:g} KB"
+
+    if size > limit_bytes:
+        res.errors.append(
+            f"The file is {size / 1024:.2f} KB ({size:,} bytes). The maximum allowed limit is {limit_desc} ({limit_bytes:,} bytes)."
+        )
         return res
 
     try:

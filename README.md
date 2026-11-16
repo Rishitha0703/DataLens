@@ -33,7 +33,7 @@ Open your browser and navigate to:
 ```
 http://127.0.0.1:8000
 ```
-- Drag and drop any **CSV**, **TSV**, or **Excel** (`.xlsx`, `.xls`) file.
+- Drag and drop any **CSV**, **TSV**, or **Excel** (`.xlsx`, `.xls`) file (maximum file size limit: **3 KB**).
 - Or click **"Try Sample Data"** to immediately test with a generated customer dataset.
 - Export standalone HTML reports or raw JSON analysis results with one click.
 

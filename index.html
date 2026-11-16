@@ -1038,13 +1038,13 @@
       <div class="dropzone-box" id="dropzone">
         <div class="drop-illustration">📊</div>
         <div class="drop-primary-text">Drag & Drop your dataset here, or click to browse</div>
-        <div class="drop-sub-text">Intelligent auto-detection for delimiters, missing values, sheet names, and data types</div>
+        <div class="drop-sub-text">Intelligent auto-detection for delimiters, missing values, sheet names, and data types (Max: 3 KB)</div>
         <div class="drop-badge-list">
           <span class="drop-file-badge">.CSV</span>
           <span class="drop-file-badge">.XLSX</span>
           <span class="drop-file-badge">.XLS</span>
           <span class="drop-file-badge">.TSV</span>
-          <span class="drop-file-badge">MAX __MAX_FILE_MB__ MB</span>
+          <span class="drop-file-badge">MAX __MAX_FILE_LIMIT__</span>
         </div>
         <input type="file" id="file-input" style="display: none;" accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls">
       </div>
@@ -1261,10 +1261,19 @@
       }
     });
 
+    const MAX_FILE_LIMIT_BYTES = 3 * 1024; // 3 KB limit
+
     function updateDropzoneLabel() {
       if (selectedFile) {
-        dropzone.querySelector(".drop-primary-text").innerHTML = `Selected: <strong>${selectedFile.name}</strong> (${(selectedFile.size / 1024).toFixed(1)} KB)`;
-        inspectAndPopulateSheets(selectedFile);
+        const sizeKb = (selectedFile.size / 1024).toFixed(2);
+        if (selectedFile.size > MAX_FILE_LIMIT_BYTES) {
+          dropzone.querySelector(".drop-primary-text").innerHTML = `Selected: <strong>${selectedFile.name}</strong> (<span style="color: var(--rose); font-weight: 700;">${sizeKb} KB — Exceeds 3 KB Limit</span>)`;
+          showError(`The selected file is ${sizeKb} KB (${selectedFile.size.toLocaleString()} bytes), which exceeds the maximum allowed limit of 3 KB (3,072 bytes). Please select a dataset under 3 KB.`);
+        } else {
+          dropzone.querySelector(".drop-primary-text").innerHTML = `Selected: <strong>${selectedFile.name}</strong> (${sizeKb} KB)`;
+          errorAlert.style.display = "none";
+          inspectAndPopulateSheets(selectedFile);
+        }
       }
     }
 
@@ -1296,6 +1305,12 @@
     uploadBtn.addEventListener("click", async () => {
       if (!selectedFile) {
         showError("Please select or drop a CSV or Excel file to analyze.");
+        return;
+      }
+
+      if (selectedFile.size > MAX_FILE_LIMIT_BYTES) {
+        const sizeKb = (selectedFile.size / 1024).toFixed(2);
+        showError(`The selected file is ${sizeKb} KB (${selectedFile.size.toLocaleString()} bytes). The maximum allowed data input limit is 3 KB (3,072 bytes). Please choose a file under 3 KB.`);
         return;
       }
 

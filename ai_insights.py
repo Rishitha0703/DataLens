@@ -325,15 +325,3 @@ if __name__ == "__main__":
     result = generate_insights(sample_analysis)
     print("AI Insights Test Output:\n")
     print(result[:400] + "...")
-
-import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
-# Access API key
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise ValueError("Gemini API key is missing!")
